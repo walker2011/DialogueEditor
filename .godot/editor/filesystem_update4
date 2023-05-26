@@ -1,0 +1,5 @@
+res://dialogue_graph.tscn
+res://DialogueGraph.cs
+res://Components/panel.tscn
+res://Components/MenuPanel.cs
+res://Nodes/SetVarNode.cs

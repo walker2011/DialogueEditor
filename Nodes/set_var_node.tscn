@@ -1,0 +1,61 @@
+[gd_scene load_steps=2 format=3 uid="uid://dr6c7ygsd87a3"]
+
+[ext_resource type="Script" path="res://Nodes/SetVarNode.cs" id="1_vgdf5"]
+
+[node name="SetVarNode" type="GraphNode"]
+offset_right = 244.0
+offset_bottom = 175.0
+title = "设置变量"
+show_close = true
+resizable = true
+slot/0/left_enabled = true
+slot/0/left_type = 0
+slot/0/left_color = Color(0.141176, 0.501961, 0.403922, 1)
+slot/0/left_icon = null
+slot/0/right_enabled = false
+slot/0/right_type = 0
+slot/0/right_color = Color(1, 1, 1, 1)
+slot/0/right_icon = null
+slot/0/draw_stylebox = true
+slot/1/left_enabled = false
+slot/1/left_type = 0
+slot/1/left_color = Color(1, 1, 1, 1)
+slot/1/left_icon = null
+slot/1/right_enabled = false
+slot/1/right_type = 0
+slot/1/right_color = Color(1, 1, 1, 1)
+slot/1/right_icon = null
+slot/1/draw_stylebox = true
+slot/2/left_enabled = false
+slot/2/left_type = 0
+slot/2/left_color = Color(1, 1, 1, 1)
+slot/2/left_icon = null
+slot/2/right_enabled = false
+slot/2/right_type = 0
+slot/2/right_color = Color(1, 1, 1, 1)
+slot/2/right_icon = null
+slot/2/draw_stylebox = true
+slot/3/left_enabled = false
+slot/3/left_type = 0
+slot/3/left_color = Color(1, 1, 1, 1)
+slot/3/left_icon = null
+slot/3/right_enabled = true
+slot/3/right_type = 0
+slot/3/right_color = Color(0.141176, 0.501961, 0.403922, 1)
+slot/3/right_icon = null
+slot/3/draw_stylebox = true
+script = ExtResource("1_vgdf5")
+
+[node name="Label" type="Label" parent="."]
+layout_mode = 2
+text = "变量名称"
+
+[node name="VarName" type="OptionButton" parent="."]
+layout_mode = 2
+
+[node name="Label2" type="Label" parent="."]
+layout_mode = 2
+text = "变量值"
+
+[node name="VarValue" type="LineEdit" parent="."]
+layout_mode = 2

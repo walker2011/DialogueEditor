@@ -1,0 +1,74 @@
+[gd_scene load_steps=3 format=3 uid="uid://c8jc7icuj2fpq"]
+
+[ext_resource type="Script" path="res://DialogueGraph.cs" id="1_otq7w"]
+[ext_resource type="PackedScene" uid="uid://c8v64p0pg0bwu" path="res://Components/panel.tscn" id="2_ggn7n"]
+
+[node name="AddClo" type="GraphEdit"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_otq7w")
+
+[node name="VBoxContainer" type="VBoxContainer" parent="."]
+visible = false
+layout_mode = 0
+offset_left = 3.0
+offset_top = 47.0
+offset_right = 112.0
+offset_bottom = 183.0
+
+[node name="AddStartNode" type="Button" parent="VBoxContainer"]
+layout_mode = 2
+text = "Start节点"
+
+[node name="AddDialogueNode" type="Button" parent="VBoxContainer"]
+layout_mode = 2
+text = "Dialogue节点"
+
+[node name="AddCallNode" type="Button" parent="VBoxContainer"]
+layout_mode = 2
+text = "Call节点"
+
+[node name="AddSetVarNode" type="Button" parent="VBoxContainer"]
+layout_mode = 2
+text = "SetVar节点"
+
+[node name="HBoxContainer" type="HBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -208.0
+offset_top = -40.0
+offset_right = 208.0
+grow_horizontal = 2
+grow_vertical = 0
+theme_override_constants/separation = 14
+
+[node name="LoadDialogue" type="Button" parent="HBoxContainer"]
+layout_mode = 2
+text = "加载剧情"
+
+[node name="SaveDialogue" type="Button" parent="HBoxContainer"]
+layout_mode = 2
+text = "保存剧情"
+
+[node name="AddSpeaker" type="Button" parent="HBoxContainer"]
+layout_mode = 2
+text = "添加角色"
+
+[node name="AddVar" type="Button" parent="HBoxContainer"]
+layout_mode = 2
+text = "添加变量"
+
+[node name="AddFunc" type="Button" parent="HBoxContainer"]
+layout_mode = 2
+text = "添加函数"
+
+[node name="Panel" parent="." instance=ExtResource("2_ggn7n")]
+visible = false
+layout_mode = 0
