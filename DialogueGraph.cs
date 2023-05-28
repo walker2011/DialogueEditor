@@ -1,16 +1,19 @@
+using System;
+using System.Collections.Generic;
 using DialogueEditor.Components;
 using DialogueEditor.Data;
 using DialogueEditor.Nodes;
 using Godot;
 using Godot.Collections;
 using Godot.Sharp.Extras;
-using System;
-using System.Collections.Generic;
 using Array = Godot.Collections.Array;
 
 namespace DialogueEditor;
 
-public partial class DialogueGraph : GraphEdit {
+public partial class DialogueGraph : Control {
+
+	[NodePath("GraphEdit")] 
+	public GraphEdit Graph;
 
 	[NodePath("VBoxContainer/AddStartNode")]
 	private Button _addStartNode;
@@ -45,13 +48,19 @@ public partial class DialogueGraph : GraphEdit {
 	[NodePath("HBoxContainer/SaveDialogue")]
 	private Button _saveDialogue;
 
+	[NodePath("OpenFileDialog")]
+	private FileDialog _openFileDialog;
+
+	[NodePath("SaveFileDialog")]
+	private FileDialog _saveFileDialog;
+	
 	private ulong _nodeId;
 
-	private static System.Collections.Generic.Dictionary<ENodeType, string> NodeType2Url = new() {
+	private static readonly System.Collections.Generic.Dictionary<ENodeType, string> NodeType2Url = new() {
 		{ ENodeType.CallNode, "res://Nodes/call_node.tscn" },
 		{ ENodeType.DialogueNode, "res://Nodes/dialogue_node.tscn" },
-		{ ENodeType.SetVarNode, "res://Nodes/start_node.tscn" },
-		{ ENodeType.StartNode, "res://Nodes/set_var_node.tscn" },
+		{ ENodeType.SetVarNode, "res://Nodes/set_var_node.tscn" },
+		{ ENodeType.StartNode, "res://Nodes/start_node.tscn" },
 	};
 
 	public override void _Ready() {
@@ -69,13 +78,30 @@ public partial class DialogueGraph : GraphEdit {
 		_saveDialogue.Pressed += OnSaveDialogue;
 		_loadDialogue.Pressed += OnLoadDialogue;
 
-		ConnectionRequest += OnConnectionRequest;
-		DisconnectionRequest += OnDisconnectionRequest;
-		DeleteNodesRequest += OnDeleteNodesRequest;
-		PopupRequest += OnPopupRequest;
-		ConnectionToEmpty += OnConnectionToEmpty;
-		ChildEnteredTree += OnChildEnteredTree;
-		ChildExitingTree += OnChildExitingTree;
+		Graph.ConnectionRequest += OnConnectionRequest;
+		Graph.DisconnectionRequest += OnDisconnectionRequest;
+		Graph.DeleteNodesRequest += OnDeleteNodesRequest;
+		Graph.PopupRequest += OnPopupRequest;
+		Graph.ConnectionToEmpty += OnConnectionToEmpty;
+		Graph.GuiInput += @event => {
+			if (@event is InputEventMouseButton mb) {
+				if (mb.ButtonIndex == MouseButton.Left && mb.Pressed) {
+					HideAll();
+				}
+			}
+		};
+		Graph.ChildEnteredTree += OnChildEnteredTree;
+		Graph.ChildExitingTree += OnChildExitingTree;
+		_openFileDialog.FileSelected += OnOpenFileSelected;
+		_saveFileDialog.FileSelected += OnSaveFileSelected;
+	}
+
+	private void OnOpenFileSelected(string path) {
+		GlobalData.I.LoadDialogue(path);
+	}
+
+	private void OnSaveFileSelected(string path) {
+		GlobalData.I.SaveDialogue(path);
 	}
 
 	private void OnChildExitingTree(Node node) {
@@ -91,23 +117,11 @@ public partial class DialogueGraph : GraphEdit {
 	}
 
 	private void OnLoadDialogue() {
-		var fileDialog = new FileDialog();
-		fileDialog.FileMode = FileDialog.FileModeEnum.OpenFile;
-		fileDialog.AddFilter("*.json");
-		fileDialog.FileSelected += path => {
-			GlobalData.I.ReadDialogue(path);
-		};
-		fileDialog.Show();
+		_openFileDialog.Show();
 	}
 
 	private void OnSaveDialogue() {
-		var fileDialog = new FileDialog();
-		fileDialog.FileMode = FileDialog.FileModeEnum.SaveFile;
-		fileDialog.AddFilter("*.json");
-		fileDialog.FileSelected += path => {
-			GlobalData.I.SaveDialogue(path);
-		};
-		fileDialog.Show();
+		_saveFileDialog.Show();
 	}
 
 	private void OnAddSpeaker() {
@@ -130,8 +144,8 @@ public partial class DialogueGraph : GraphEdit {
 	}
 
 	private void OnResizeRequest<T>(Vector2 minSize, T node) where T : SerializeGraphNode {
-		if (UseSnap) {
-			minSize = minSize.Snapped(Vector2.One * SnapDistance);
+		if (Graph.UseSnap) {
+			minSize = minSize.Snapped(Vector2.One * Graph.SnapDistance);
 		}
 
 		node.Size = minSize;
@@ -169,7 +183,7 @@ public partial class DialogueGraph : GraphEdit {
 	}
 
 	public void TryConnectNode(StringName fromNode, long fromPort, StringName toNode, long toPort) {
-		var error = ConnectNode(fromNode, (int)fromPort, toNode, (int)toPort);
+		var error = Graph.ConnectNode(fromNode, (int)fromPort, toNode, (int)toPort);
 		if (error == Error.Ok) {
 			GlobalData.I.OnConnectNode(fromNode, fromPort, toNode, toPort);
 		} else {
@@ -178,7 +192,7 @@ public partial class DialogueGraph : GraphEdit {
 	}
 
 	public void TryDisconnectNode(StringName fromNode, long fromPort, StringName toNode, long toPort) {
-		DisconnectNode(fromNode, (int)fromPort, toNode, (int)toPort);
+		Graph.DisconnectNode(fromNode, (int)fromPort, toNode, (int)toPort);
 		GlobalData.I.OnDisconnectNode(fromNode, fromPort, toNode, toPort);
 	}
 
@@ -188,18 +202,10 @@ public partial class DialogueGraph : GraphEdit {
 		node.Name = typeof(T).Name + "_" + (_nodeId++);
 		node.CloseRequest += () => OnCloseRequest(node);
 		node.ResizeRequest += minSize => OnResizeRequest(minSize, node);
-		AddChild(node);
-		node.PositionOffset = _popMenu.Position;
+		Graph.AddChild(node);
+		node.PositionOffset = (_popMenu.Position + Graph.ScrollOffset) / Graph.Zoom;
 		_popMenu.Visible = false;
 		return node;
-	}
-
-	public override void _GuiInput(InputEvent @event) {
-		if (@event is InputEventMouseButton mb) {
-			if (mb.ButtonIndex == MouseButton.Left && mb.Pressed) {
-				HideAll();
-			}
-		}
 	}
 
 	private void HideAll() {
@@ -207,11 +213,12 @@ public partial class DialogueGraph : GraphEdit {
 		_panel.HideAndInvalidateData();
 	}
 
-	public void DeserializeData(List<System.Collections.Generic.Dictionary<string, string>> graphNodes, Array<Dictionary> graphConnections) {
+	public void DeserializeData(DialogueGraphSerializeMo graphMo) {
 		System.Collections.Generic.Dictionary<string, string> oldName2NewName = new();
-		foreach (var graphNode in graphNodes) {
+		foreach (var graphNodeMo in graphMo.NodeMos) {
 			SerializeGraphNode node;
-			switch ((ENodeType)graphNode["NodeType"].ToInt()) {
+			Enum.TryParse<ENodeType>(graphNodeMo.NodeType, out var nodeType);
+			switch (nodeType) {
 				case ENodeType.CallNode:
 					node = AddGraphNode<CallNode>(ENodeType.CallNode);
 					break;
@@ -228,14 +235,14 @@ public partial class DialogueGraph : GraphEdit {
 					throw new ArgumentOutOfRangeException();
 			}
 
-			node.FromJson(graphNode);
-			oldName2NewName.Add(graphNode["Name"], node.Name);
+			node.FromJson(graphNodeMo);
+			oldName2NewName.Add(graphNodeMo.Name, node.Name);
 		}
 
-		foreach (var connection in graphConnections) {
-			if (oldName2NewName.TryGetValue(connection["from"].AsString(), out var fromNodeName) &&
-			    oldName2NewName.TryGetValue(connection["to"].AsString(), out var toNodeName)) {
-				TryConnectNode(fromNodeName, connection["from_port"].AsInt64(), toNodeName, connection["to_port"].AsInt64());
+		foreach (var connectionMo in graphMo.ConnectionMos) {
+			if (oldName2NewName.TryGetValue(connectionMo.FromNodeName, out var fromNodeName) &&
+				oldName2NewName.TryGetValue(connectionMo.ToNodeName, out var toNodeName)) {
+				TryConnectNode(fromNodeName, connectionMo.FromPort.ToInt(), toNodeName, connectionMo.ToNodePort.ToInt());
 			}
 		}
 	}

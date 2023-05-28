@@ -11,7 +11,7 @@ public partial class Option : HBoxContainer {
 	[NodePath("RemoveOption")]
 	public Button RemoveOption;
 
-	[NodePath("RemoveOption")]
+	[NodePath("Content")]
 	public LineEdit OptionContent;
 
 	public override void _Ready() {

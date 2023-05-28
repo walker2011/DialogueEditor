@@ -1,19 +1,18 @@
 using DialogueEditor.Data;
+using DialogueEditor.Data.NodeMo;
 using Godot;
 using Godot.Sharp.Extras;
-using System.Collections.Generic;
 
 namespace DialogueEditor.Nodes;
 
 public partial class CallNode : SerializeGraphNode {
-
-	[NodePath("FuncName")]
-	private OptionButton _funcName;
+	[NodePath("FuncName")] private OptionButton _funcName;
 
 	public override void _Ready() {
 		this.OnReady();
 		GlobalData.I.OneSettingDataChanged += OnOneSettingDataChanged;
 		GlobalData.I.AllSettingDataChanged += OnAllSettingDataChanged;
+		OnAllSettingDataChanged();
 	}
 
 	private void OnAllSettingDataChanged() {
@@ -38,20 +37,25 @@ public partial class CallNode : SerializeGraphNode {
 
 	public override CheckSerializeResult CheckCanSerialize() {
 		if (string.IsNullOrEmpty(_funcName.Text)) {
-			return new CheckSerializeResult { IsFailed = true, Reason = "Function Name Can't Be Empty." };
+			return new CheckSerializeResult {IsFailed = true, Reason = "Function Name Can't Be Empty."};
 		}
 
-		return new CheckSerializeResult { IsFailed = false };
+		return new CheckSerializeResult {IsFailed = false};
 	}
 
-	public override void ToJson(Dictionary<string, string> json) {
-		base.ToJson(json);
-		json["nodeType"] = ENodeType.CallNode.ToString();
-		json["FuncName"] = _funcName.Text;
+	public override void ToJson(SerializeNodeMo mo) {
+		base.ToJson(mo);
+
+		mo.NodeType = ENodeType.CallNode.ToString();
+		mo.FuncName = _funcName.Text;
+		var targetNode = GlobalData.I.GetLinkTo(Name);
+		if (targetNode != null) {
+			mo.LinkNext = targetNode.Uuid.ToString();
+		}
 	}
 
-	public override void FromJson(Dictionary<string, string> json) {
-		base.FromJson(json);
-		_funcName.Text = json["FuncName"];
+	public override void FromJson(SerializeNodeMo mo) {
+		base.FromJson(mo);
+		_funcName.Text = mo.FuncName;
 	}
 }

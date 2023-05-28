@@ -1,5 +1,6 @@
-res://dialogue_graph.tscn
-res://DialogueGraph.cs
-res://Components/panel.tscn
-res://Components/MenuPanel.cs
+res://Nodes/dialogue_node.tscn
+res://Nodes/CallNode.cs
+res://Nodes/DialogueNode.cs
 res://Nodes/SetVarNode.cs
+res://Nodes/StartNode.cs
+res://dialogue_graph.tscn

@@ -1,11 +1,12 @@
 ﻿using System.Collections.Generic;
+using DialogueEditor.Data.NodeMo;
 
 namespace DialogueEditor;
 
 public interface ISerializable {
 
 	CheckSerializeResult CheckCanSerialize();
-	void ToJson(Dictionary<string, string> json);
-	void FromJson(Dictionary<string, string> json);
+	void ToJson(SerializeNodeMo mo);
+	void FromJson(SerializeNodeMo mo);
 
 }

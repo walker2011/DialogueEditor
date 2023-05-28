@@ -61,14 +61,17 @@ text = "说话的人"
 
 [node name="Speaker" type="OptionButton" parent="."]
 layout_mode = 2
+size_flags_vertical = 3
 
 [node name="Label2" type="Label" parent="."]
 layout_mode = 2
 text = "内容"
 
 [node name="Content" type="TextEdit" parent="."]
+custom_minimum_size = Vector2(0, 200)
 layout_mode = 2
 placeholder_text = "对话内容"
+scroll_smooth = true
 
 [node name="AddOption" type="Button" parent="."]
 layout_mode = 2

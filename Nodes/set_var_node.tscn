@@ -52,6 +52,7 @@ text = "变量名称"
 
 [node name="VarName" type="OptionButton" parent="."]
 layout_mode = 2
+size_flags_vertical = 3
 
 [node name="Label2" type="Label" parent="."]
 layout_mode = 2
