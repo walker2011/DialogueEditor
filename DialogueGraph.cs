@@ -1,11 +1,9 @@
-using System;
-using System.Collections.Generic;
 using DialogueEditor.Components;
 using DialogueEditor.Data;
 using DialogueEditor.Nodes;
 using Godot;
-using Godot.Collections;
 using Godot.Sharp.Extras;
+using System;
 using Array = Godot.Collections.Array;
 
 namespace DialogueEditor;
@@ -182,7 +180,7 @@ public partial class DialogueGraph : Control {
 		TryConnectNode(fromNode, fromPort, toNode, toPort);
 	}
 
-	public void TryConnectNode(StringName fromNode, long fromPort, StringName toNode, long toPort) {
+	private void TryConnectNode(StringName fromNode, long fromPort, StringName toNode, long toPort) {
 		var error = Graph.ConnectNode(fromNode, (int)fromPort, toNode, (int)toPort);
 		if (error == Error.Ok) {
 			GlobalData.I.OnConnectNode(fromNode, fromPort, toNode, toPort);

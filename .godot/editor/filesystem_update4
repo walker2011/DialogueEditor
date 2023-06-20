@@ -1,6 +1,0 @@
-res://Nodes/dialogue_node.tscn
-res://Nodes/CallNode.cs
-res://Nodes/DialogueNode.cs
-res://Nodes/SetVarNode.cs
-res://Nodes/StartNode.cs
-res://dialogue_graph.tscn
