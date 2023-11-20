@@ -4,7 +4,9 @@ using DialogueEditor.Nodes;
 using Godot;
 using Godot.Sharp.Extras;
 using System;
+using System.IO;
 using Array = Godot.Collections.Array;
+using FileAccess = Godot.FileAccess;
 
 namespace DialogueEditor;
 
@@ -53,6 +55,7 @@ public partial class DialogueGraph : Control {
 	private FileDialog _saveFileDialog;
 	
 	private ulong _nodeId;
+	private SettingMo _fileCurDirMo; 
 
 	private static readonly System.Collections.Generic.Dictionary<ENodeType, string> NodeType2Url = new() {
 		{ ENodeType.CallNode, "res://Nodes/call_node.tscn" },
@@ -92,14 +95,33 @@ public partial class DialogueGraph : Control {
 		Graph.ChildExitingTree += OnChildExitingTree;
 		_openFileDialog.FileSelected += OnOpenFileSelected;
 		_saveFileDialog.FileSelected += OnSaveFileSelected;
+
+		_fileCurDirMo = GlobalData.I.GetSetting(ESettingType.CurrentDir);
+		if (_fileCurDirMo.Data.Count == 0) {
+			_fileCurDirMo.Data.Add("");
+		}
 	}
 
 	private void OnOpenFileSelected(string path) {
-		GlobalData.I.LoadDialogue(path);
+		if (FileAccess.FileExists(path)) {
+			SetCurrentDirFromPath(path);
+			GlobalData.I.LoadDialogue(path);
+		}
 	}
 
 	private void OnSaveFileSelected(string path) {
-		GlobalData.I.SaveDialogue(path);
+		if (FileAccess.FileExists(path)) {
+			SetCurrentDirFromPath(path);
+			GlobalData.I.SaveDialogue(path);
+		}
+	}
+
+	private void SetCurrentDirFromPath(string path) {
+		var fileInfo = new FileInfo(path);
+		if (fileInfo.Directory != null) {
+			_fileCurDirMo.Data[0] = fileInfo.Directory.FullName;
+			GlobalData.I.InvalidateSetting(_fileCurDirMo);
+		}
 	}
 
 	private void OnChildExitingTree(Node node) {
@@ -115,10 +137,12 @@ public partial class DialogueGraph : Control {
 	}
 
 	private void OnLoadDialogue() {
+		_openFileDialog.CurrentDir = _fileCurDirMo.Data.Count > 0 ? _fileCurDirMo.Data[0] : "";
 		_openFileDialog.Show();
 	}
 
 	private void OnSaveDialogue() {
+		_saveFileDialog.CurrentDir = _fileCurDirMo.Data.Count > 0 ? _fileCurDirMo.Data[0] : "";
 		_saveFileDialog.Show();
 	}
 

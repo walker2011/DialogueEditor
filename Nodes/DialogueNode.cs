@@ -110,7 +110,7 @@ public partial class DialogueNode : SerializeGraphNode {
 			foreach (var linkTo in linkTos) {
 				if (linkTo.Value.Count > 0 &&
 					GlobalData.I.GraphNodes.TryGetValue(linkTo.Value.First().Key, out var targetNode)) {
-					var slotIdx = GetConnectionOutputSlot((int) linkTo.Key);
+					var slotIdx = GetOutputPortSlot((int)linkTo.Key);
 					childIdx2Node.Add(slotIdx, targetNode);
 				}
 			}

@@ -5,9 +5,9 @@
 [node name="DialogueNode" type="GraphNode"]
 offset_right = 344.0
 offset_bottom = 218.0
-title = "对话"
-show_close = true
+size_flags_horizontal = 3
 resizable = true
+title = "对话"
 slot/0/left_enabled = true
 slot/0/left_type = 0
 slot/0/left_color = Color(0.129412, 0.466667, 0.721569, 1)
@@ -61,7 +61,6 @@ text = "说话的人"
 
 [node name="Speaker" type="OptionButton" parent="."]
 layout_mode = 2
-size_flags_vertical = 3
 
 [node name="Label2" type="Label" parent="."]
 layout_mode = 2
@@ -71,6 +70,7 @@ text = "内容"
 custom_minimum_size = Vector2(0, 200)
 layout_mode = 2
 placeholder_text = "对话内容"
+wrap_mode = 1
 scroll_smooth = true
 
 [node name="AddOption" type="Button" parent="."]

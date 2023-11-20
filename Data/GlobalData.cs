@@ -59,9 +59,9 @@ public partial class GlobalData : Node {
 	public void RemoveAllOutput(string fromName) {
 		var connectionList = Dialogue.Graph.GetConnectionList();
 		foreach (var connectionDict in connectionList) {
-			if (connectionDict["from"].AsString().Equals(fromName)) {
-				Dialogue.TryDisconnectNode(connectionDict["from"].AsString(), connectionDict["from_port"].AsInt32(),
-					connectionDict["to"].AsString(), connectionDict["to_port"].AsInt32());
+			if (connectionDict["from_node"].AsString().Equals(fromName)) {
+				Dialogue.TryDisconnectNode(connectionDict["from_node"].AsString(), connectionDict["from_port"].AsInt32(),
+					connectionDict["to_node"].AsString(), connectionDict["to_port"].AsInt32());
 			}
 		}
 	}
@@ -69,10 +69,10 @@ public partial class GlobalData : Node {
 	public void RemoveAllOutput(string fromName, long fromPort) {
 		var connectList = Dialogue.Graph.GetConnectionList();
 		foreach (var connectionDict in connectList) {
-			if (connectionDict["from"].AsString().Equals(fromName) &&
+			if (connectionDict["from_node"].AsString().Equals(fromName) &&
 			    connectionDict["from_port"].AsInt64() == fromPort) {
-				Dialogue.TryDisconnectNode(connectionDict["from"].AsString(), connectionDict["from_port"].AsInt32(),
-					connectionDict["to"].AsString(), connectionDict["to_port"].AsInt32());
+				Dialogue.TryDisconnectNode(connectionDict["from_node"].AsString(), connectionDict["from_port"].AsInt32(),
+					connectionDict["to_node"].AsString(), connectionDict["to_port"].AsInt32());
 			}
 		}
 	}
@@ -110,9 +110,9 @@ public partial class GlobalData : Node {
 		var connectionList = Dialogue.Graph.GetConnectionList();
 		foreach (var connectionDict in connectionList) {
 			var connectionMo = new ConnectionSerializeMo() {
-				FromNodeName = connectionDict["from"].AsString(),
+				FromNodeName = connectionDict["from_node"].AsString(),
 				FromPort = connectionDict["from_port"].AsString(),
-				ToNodeName = connectionDict["to"].AsString(),
+				ToNodeName = connectionDict["to_node"].AsString(),
 				ToNodePort = connectionDict["to_port"].AsString(),
 			};
 			graphMo.ConnectionMos.Add(connectionMo);
