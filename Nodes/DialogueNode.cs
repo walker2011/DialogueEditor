@@ -1,18 +1,21 @@
-using System.Collections.Generic;
-using System.Linq;
 using DialogueEditor.Data;
 using DialogueEditor.Data.NodeMo;
 using Godot;
 using Godot.Sharp.Extras;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace DialogueEditor.Nodes;
 
 public partial class DialogueNode : SerializeGraphNode {
-	[NodePath("Speaker")] private OptionButton _speaker;
+	[NodePath("Speaker")] 
+	private OptionButton _speaker;
 
-	[NodePath("Content")] private TextEdit _content;
+	[NodePath("Content")] 
+	private TextEdit _content;
 
-	[NodePath("AddOption")] private Button _addOption;
+	[NodePath("AddOption")] 
+	private Button _addOption;
 
 	private readonly List<Option.Option> _options = new();
 
@@ -20,29 +23,26 @@ public partial class DialogueNode : SerializeGraphNode {
 		this.OnReady();
 		_addOption.Pressed += OnAddOption;
 
-		GlobalData.I.OneSettingDataChanged += OnOneSettingDataChanged;
-		GlobalData.I.AllSettingDataChanged += OnAllSettingDataChanged;
-		OnAllSettingDataChanged();
+		GlobalData.I.ReloadConfigs += OnReloadConfigs;
+		OnReloadConfigs();
 	}
 
-	private void OnAllSettingDataChanged() {
-		var mo = GlobalData.I.GetSetting(ESettingType.Speaker);
-		OnOneSettingDataChanged(mo);
-	}
-
-	private void OnOneSettingDataChanged(SettingMo mo) {
-		if (mo.SettingType.Equals(ESettingType.Speaker)) {
-			if (string.IsNullOrEmpty(_speaker.Text)) {
-				if (mo.Data.IndexOf(_speaker.Text) == -1) {
-					_speaker.Text = "";
-				}
-			}
-
-			_speaker.Clear();
-			foreach (var content in mo.Data) {
-				_speaker.AddItem(content);
+	private void OnReloadConfigs() {
+		var npcConfig = GlobalData.I.NpcConfig;
+		if (!string.IsNullOrEmpty(_speaker.Text) && npcConfig != null) {
+			if (!npcConfig.MoDict.ContainsKey(NpcMo.TryParseNpcId(_speaker.Text))) {
+				_speaker.Text = "";
 			}
 		}
+
+		_speaker.Clear();
+		if (npcConfig != null) {
+			for (var i = 0; i < npcConfig.MoArray.Count; i++) {
+				var npcMo = npcConfig.MoArray[i];
+				var id = i;
+				_speaker.AddItem(npcMo.ToString(), id);
+			}	
+		} 
 	}
 
 	private void OnAddOption() {
@@ -62,22 +62,8 @@ public partial class DialogueNode : SerializeGraphNode {
 		if (_options.Count > 0) {
 			var index = _options.IndexOf(option);
 			if (index >= 0) {
-				// var linkTos = GlobalData.I.GetLinkTos(Name);
-				// if (linkTos != null) {
-				// 	foreach (var linkTo in linkTos) {
-				// 		if (linkTo.Value.Count > 0 &&
-				// 			GlobalData.I.GraphNodes.TryGetValue(linkTo.Value.First().Key, out var targetNode)) {
-				// 			var slotIdx = GetConnectionOutputSlot((int) linkTo.Key);
-				// 			if (slotIdx == option.GetIndex()) {
-				// 				GlobalData.I.RemoveAllOutput(Name, linkTo.Key);
-				// 				break;
-				// 			}
-				// 		}
-				// 	}
-				// }
 				GlobalData.I.RemoveAllOutput(Name);
 				
-
 				_options.RemoveAt(index);
 				RemoveChild(option);
 			}
@@ -100,10 +86,9 @@ public partial class DialogueNode : SerializeGraphNode {
 		base.ToJson(mo);
 		
 		mo.NodeType = ENodeType.DialogueNode.ToString();
-		mo.Speaker = _speaker.Text;
+		mo.SpeakerId = NpcMo.TryParseNpcId(_speaker.Text);
 		mo.Content = _content.Text;
 		mo.OptionMos = new List<OptionMo>();
-			
 		var linkTos = GlobalData.I.GetLinkTos(Name);
 		var childIdx2Node = new Dictionary<int, SerializeGraphNode>();
 		if (linkTos != null) {
@@ -129,7 +114,10 @@ public partial class DialogueNode : SerializeGraphNode {
 
 	public override void FromJson(SerializeNodeMo mo) {
 		base.FromJson(mo);
-		_speaker.Text = mo.Speaker;
+		var npcConfig = GlobalData.I.NpcConfig;
+		NpcMo npcMo = null;
+		npcConfig?.MoDict.TryGetValue(mo.SpeakerId, out npcMo);
+		_speaker.Text = npcMo?.ToString() ?? "";
 		_content.Text = mo.Content;
 		if (mo.OptionMos != null) {
 			foreach (var optionMo in mo.OptionMos) {

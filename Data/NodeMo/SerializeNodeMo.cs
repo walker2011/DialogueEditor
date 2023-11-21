@@ -20,7 +20,7 @@ public class SerializeNodeMo {
     
     public string DialogueId;
     
-    public string Speaker;
+    public ulong SpeakerId;
     public string Content;
     public List<OptionMo> OptionMos;
 }

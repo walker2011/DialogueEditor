@@ -1,36 +1,33 @@
-﻿using System.Collections.Generic;
-using System.Data;
-using System.Linq;
-using DialogueEditor.Data.ConnectionMo;
+﻿using DialogueEditor.Data.ConnectionMo;
 using DialogueEditor.Data.NodeMo;
 using DialogueEditor.Nodes;
 using Godot;
 using Newtonsoft.Json;
+using System.Collections.Generic;
+using System.Data;
+using System.Linq;
 
 namespace DialogueEditor.Data;
 
 public partial class GlobalData : Node {
-	private static readonly string SettingPath = "./dialogue_settings.json";
-
 	public static GlobalData I { get; private set; }
 
 	[Signal]
-	public delegate void OneSettingDataChangedEventHandler(SettingMo mo);
-
-	[Signal]
-	public delegate void AllSettingDataChangedEventHandler();
+	public delegate void ReloadConfigsEventHandler();
 
 	public readonly Dictionary<string, SerializeGraphNode> GraphNodes = new();
 
 	/// <summary>
 	/// fromNodeName->from_port->toNodeName->to_port->boolean
 	/// </summary>
-	public readonly Dictionary<string, Dictionary<long, Dictionary<string, Dictionary<long, bool>>>> GraphConnections =
-		new();
+	public readonly Dictionary<string, Dictionary<long, Dictionary<string, Dictionary<long, bool>>>> GraphConnections = new();
 
-	public DialogueGraph Dialogue;
+	public IDialogueGraph Dialogue;
 
-	private readonly Dictionary<ESettingType, SettingMo> _settingMap;
+	public GlobalSettingMo GlobalSettingMo { get; private set; }
+	public DialogueConfigMos<ulong, NpcMo> NpcConfig;
+	public DialogueConfigMos<string, VariableMo> VariableConfig;
+	public DialogueConfigMos<string, FunctionMo> FunctionConfig;
 
 	public GlobalData() {
 		if (I != null) {
@@ -39,59 +36,56 @@ public partial class GlobalData : Node {
 
 		I = this;
 		if (!Engine.IsEditorHint()) {
-			if (FileAccess.FileExists(SettingPath)) {
-				var fileAccess = FileAccess.Open(SettingPath, FileAccess.ModeFlags.Read);
-				var settings = fileAccess.GetAsText();
-				fileAccess.Close();
-				_settingMap = JsonConvert.DeserializeObject<Dictionary<ESettingType, SettingMo>>(settings);
-			} else {
-				_settingMap = new Dictionary<ESettingType, SettingMo>();
-			}
+			GlobalSettingMo = FileAccess.FileExists(GlobalSettingMo.GlobalSettingPath)
+				? ResourceLoader.Load<GlobalSettingMo>(GlobalSettingMo.GlobalSettingPath)
+				: new GlobalSettingMo();
 
-			EmitSignal(SignalName.AllSettingDataChanged);
+			TryReloadConfigs();
 		}
 	}
 
-	public void SetGraph(DialogueGraph dialogueGraph) {
+	public void SetCurrentDir(string path) {
+		GlobalSettingMo.CurrentDir = path;
+	}
+
+	public void SetDialogueRoot(string path) {
+		GlobalSettingMo.DialogueRoot = path;
+		TryReloadConfigs();
+	}
+
+	public void TryReloadConfigs() {
+		NpcConfig = new DialogueConfigMos<ulong, NpcMo>(GlobalSettingMo.DialogueRoot);
+		VariableConfig = new DialogueConfigMos<string, VariableMo>(GlobalSettingMo.DialogueRoot);
+		FunctionConfig = new DialogueConfigMos<string, FunctionMo>(GlobalSettingMo.DialogueRoot);
+		EmitSignal(SignalName.ReloadConfigs);
+	}
+	
+	public bool IsDialogueRootInvalid(string path) {
+		return DirAccess.DirExistsAbsolute(path) && FileAccess.FileExists($"{path}/Npcs.json");
+	}
+
+	public void SetGraph(IDialogueGraph dialogueGraph) {
 		Dialogue = dialogueGraph;
 	}
 
 	public void RemoveAllOutput(string fromName) {
-		var connectionList = Dialogue.Graph.GetConnectionList();
+		var connectionList = Dialogue.GetConnectionList();
 		foreach (var connectionDict in connectionList) {
 			if (connectionDict["from_node"].AsString().Equals(fromName)) {
-				Dialogue.TryDisconnectNode(connectionDict["from_node"].AsString(), connectionDict["from_port"].AsInt32(),
-					connectionDict["to_node"].AsString(), connectionDict["to_port"].AsInt32());
+				Dialogue.TryDisconnectNode(connectionDict["from_node"].AsString(), connectionDict["from_port"].AsInt32(), connectionDict["to_node"].AsString(),
+					connectionDict["to_port"].AsInt32());
 			}
 		}
 	}
 
 	public void RemoveAllOutput(string fromName, long fromPort) {
-		var connectList = Dialogue.Graph.GetConnectionList();
+		var connectList = Dialogue.GetConnectionList();
 		foreach (var connectionDict in connectList) {
-			if (connectionDict["from_node"].AsString().Equals(fromName) &&
-			    connectionDict["from_port"].AsInt64() == fromPort) {
-				Dialogue.TryDisconnectNode(connectionDict["from_node"].AsString(), connectionDict["from_port"].AsInt32(),
-					connectionDict["to_node"].AsString(), connectionDict["to_port"].AsInt32());
+			if (connectionDict["from_node"].AsString().Equals(fromName) && connectionDict["from_port"].AsInt64() == fromPort) {
+				Dialogue.TryDisconnectNode(connectionDict["from_node"].AsString(), connectionDict["from_port"].AsInt32(), connectionDict["to_node"].AsString(),
+					connectionDict["to_port"].AsInt32());
 			}
 		}
-	}
-
-	public void InvalidateSetting(SettingMo mo) {
-		var setting = JsonConvert.SerializeObject(_settingMap);
-		var fileAccess = FileAccess.Open(SettingPath, FileAccess.ModeFlags.Write);
-		fileAccess.StoreString(setting);
-		fileAccess.Flush();
-		fileAccess.Close();
-		EmitSignal(SignalName.OneSettingDataChanged, mo);
-	}
-
-	public SettingMo GetSetting(ESettingType settingType) {
-		if (!_settingMap.ContainsKey(settingType)) {
-			_settingMap.Add(settingType, new SettingMo { SettingType = settingType, Data = new List<string>() });
-		}
-
-		return _settingMap[settingType];
 	}
 
 	public void SaveDialogue(string path) {
@@ -101,13 +95,13 @@ public partial class GlobalData : Node {
 			NodeMos = new List<SerializeNodeMo>()
 		};
 		foreach (var pair in GraphNodes) {
-			var nodeMo =new SerializeNodeMo();
+			var nodeMo = new SerializeNodeMo();
 			pair.Value.ToJson(nodeMo);
 			nodeMo.Name = pair.Value.Name;
 			graphMo.NodeMos.Add(nodeMo);
 		}
 
-		var connectionList = Dialogue.Graph.GetConnectionList();
+		var connectionList = Dialogue.GetConnectionList();
 		foreach (var connectionDict in connectionList) {
 			var connectionMo = new ConnectionSerializeMo() {
 				FromNodeName = connectionDict["from_node"].AsString(),
@@ -128,13 +122,7 @@ public partial class GlobalData : Node {
 			var jsonText = fileAccess.GetAsText();
 			var graphMo = JsonConvert.DeserializeObject<DialogueGraphSerializeMo>(jsonText);
 			fileAccess.Close();
-
-			foreach (var pair in GraphNodes) {
-				Dialogue.RemoveChild(pair.Value);
-				pair.Value.QueueFree();
-			}
 			
-
 			Dialogue.DeserializeData(graphMo);
 		}
 	}
@@ -184,5 +172,5 @@ public partial class GlobalData : Node {
 
 		return null;
 	}
-	
+
 }

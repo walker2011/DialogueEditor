@@ -6,41 +6,38 @@ using Godot.Sharp.Extras;
 namespace DialogueEditor.Nodes;
 
 public partial class CallNode : SerializeGraphNode {
-	[NodePath("FuncName")] private OptionButton _funcName;
+	[NodePath("FuncName")]
+	private OptionButton _funcName;
 
 	public override void _Ready() {
 		this.OnReady();
-		GlobalData.I.OneSettingDataChanged += OnOneSettingDataChanged;
-		GlobalData.I.AllSettingDataChanged += OnAllSettingDataChanged;
-		OnAllSettingDataChanged();
+		GlobalData.I.ReloadConfigs += OnReloadConfigs;
+		OnReloadConfigs();
 	}
 
-	private void OnAllSettingDataChanged() {
-		var mo = GlobalData.I.GetSetting(ESettingType.Function);
-		OnOneSettingDataChanged(mo);
-	}
-
-	private void OnOneSettingDataChanged(SettingMo mo) {
-		if (mo.SettingType.Equals(ESettingType.Function)) {
-			if (string.IsNullOrEmpty(_funcName.Text)) {
-				if (mo.Data.IndexOf(_funcName.Text) == -1) {
-					_funcName.Text = "";
-				}
+	private void OnReloadConfigs() {
+		var functionConfig = GlobalData.I.FunctionConfig;
+		if (!string.IsNullOrEmpty(_funcName.Text)) {
+			if (!functionConfig.MoDict.ContainsKey(_funcName.Text)) {
+				_funcName.Text = "";
 			}
+		}
 
-			_funcName.Clear();
-			foreach (var content in mo.Data) {
-				_funcName.AddItem(content);
-			}
+		_funcName.Clear();
+		for (var i = 0; i < functionConfig.MoArray.Count; i++) {
+			var functionMo = functionConfig.MoArray[i];
+			var id = i;
+			_funcName.AddItem(functionMo.Name, id);
+			_funcName.SetItemTooltip(id, functionMo.Description);
 		}
 	}
 
 	public override CheckSerializeResult CheckCanSerialize() {
 		if (string.IsNullOrEmpty(_funcName.Text)) {
-			return new CheckSerializeResult {IsFailed = true, Reason = "Function Name Can't Be Empty."};
+			return new CheckSerializeResult { IsFailed = true, Reason = "Function Name Can't Be Empty." };
 		}
 
-		return new CheckSerializeResult {IsFailed = false};
+		return new CheckSerializeResult { IsFailed = false };
 	}
 
 	public override void ToJson(SerializeNodeMo mo) {

@@ -1,7 +1,7 @@
-using DialogueEditor.Components;
 using DialogueEditor.Data;
 using DialogueEditor.Nodes;
 using Godot;
+using Godot.Collections;
 using Godot.Sharp.Extras;
 using System;
 using System.IO;
@@ -10,9 +10,9 @@ using FileAccess = Godot.FileAccess;
 
 namespace DialogueEditor;
 
-public partial class DialogueGraph : Control {
+public partial class DialogueGraph : Control, IDialogueGraph {
 
-	[NodePath("GraphEdit")] 
+	[NodePath("GraphEdit")]
 	public GraphEdit Graph;
 
 	[NodePath("VBoxContainer/AddStartNode")]
@@ -30,32 +30,31 @@ public partial class DialogueGraph : Control {
 	[NodePath("VBoxContainer")]
 	private VBoxContainer _popMenu;
 
-	[NodePath("Panel")]
-	private MenuPanel _panel;
+	// [NodePath("Panel"))]
+	// private MenuPanel _panel;
 
-	[NodePath("HBoxContainer/AddSpeaker")]
-	private Button _addSpeaker;
-
-	[NodePath("HBoxContainer/AddFunc")]
-	private Button _addFunction;
-
-	[NodePath("HBoxContainer/AddVar")]
-	private Button _addVar;
-	
 	[NodePath("HBoxContainer/LoadDialogue")]
 	private Button _loadDialogue;
-	
+
 	[NodePath("HBoxContainer/SaveDialogue")]
 	private Button _saveDialogue;
+
+	[NodePath("HBoxContainer/SetRoot")]
+	private Button _setRoot;
 
 	[NodePath("OpenFileDialog")]
 	private FileDialog _openFileDialog;
 
 	[NodePath("SaveFileDialog")]
 	private FileDialog _saveFileDialog;
-	
+
+	[NodePath("AcceptDialog")]
+	private AcceptDialog _acceptDialog;
+
+	[NodePath("SetRootFileDialog")]
+	private FileDialog _setRootFileDialog;
+
 	private ulong _nodeId;
-	private SettingMo _fileCurDirMo; 
 
 	private static readonly System.Collections.Generic.Dictionary<ENodeType, string> NodeType2Url = new() {
 		{ ENodeType.CallNode, "res://Nodes/call_node.tscn" },
@@ -73,11 +72,9 @@ public partial class DialogueGraph : Control {
 		_addDialogueNode.Pressed += () => AddGraphNode<DialogueNode>(ENodeType.DialogueNode);
 		_addCallNode.Pressed += () => AddGraphNode<CallNode>(ENodeType.CallNode);
 		_addSetVarNode.Pressed += () => AddGraphNode<SetVarNode>(ENodeType.SetVarNode);
-		_addSpeaker.Pressed += OnAddSpeaker;
-		_addFunction.Pressed += OnAddFunction;
-		_addVar.Pressed += OnAddVariable;
 		_saveDialogue.Pressed += OnSaveDialogue;
 		_loadDialogue.Pressed += OnLoadDialogue;
+		_setRoot.Pressed += OnSetRoot;
 
 		Graph.ConnectionRequest += OnConnectionRequest;
 		Graph.DisconnectionRequest += OnDisconnectionRequest;
@@ -95,10 +92,10 @@ public partial class DialogueGraph : Control {
 		Graph.ChildExitingTree += OnChildExitingTree;
 		_openFileDialog.FileSelected += OnOpenFileSelected;
 		_saveFileDialog.FileSelected += OnSaveFileSelected;
+		_setRootFileDialog.DirSelected += OnSetRootDirSelected;
 
-		_fileCurDirMo = GlobalData.I.GetSetting(ESettingType.CurrentDir);
-		if (_fileCurDirMo.Data.Count == 0) {
-			_fileCurDirMo.Data.Add("");
+		if (!GlobalData.I.IsDialogueRootInvalid(GlobalData.I.GlobalSettingMo.DialogueRoot)) {
+			_setRootFileDialog.Show();
 		}
 	}
 
@@ -111,16 +108,36 @@ public partial class DialogueGraph : Control {
 
 	private void OnSaveFileSelected(string path) {
 		if (FileAccess.FileExists(path)) {
+			foreach (var pair in GlobalData.I.GraphNodes) {
+				var result = pair.Value.CheckCanSerialize();
+				if (result.IsFailed) {
+					ShowMessage(result.Reason);
+					return;
+				}
+			}
 			SetCurrentDirFromPath(path);
 			GlobalData.I.SaveDialogue(path);
 		}
 	}
 
+	private void OnSetRootDirSelected(string path) {
+		if (GlobalData.I.IsDialogueRootInvalid(path)) {
+			SetCurrentDirFromPath(path);
+			GlobalData.I.SetDialogueRoot(path);
+		} else {
+			_setRootFileDialog.Show();
+			ShowMessage("Can not find Npcs.json in this directory. Invalid Dialogue root.");
+		}
+	}
+
 	private void SetCurrentDirFromPath(string path) {
-		var fileInfo = new FileInfo(path);
-		if (fileInfo.Directory != null) {
-			_fileCurDirMo.Data[0] = fileInfo.Directory.FullName;
-			GlobalData.I.InvalidateSetting(_fileCurDirMo);
+		DirectoryInfo dictionaryInfo = null;
+		if (Path.HasExtension(path)) {
+			var fileInfo = new FileInfo(path);
+			dictionaryInfo = fileInfo.Directory;
+		}
+		if (dictionaryInfo != null) {
+			GlobalData.I.SetCurrentDir(dictionaryInfo.FullName);
 		}
 	}
 
@@ -137,28 +154,18 @@ public partial class DialogueGraph : Control {
 	}
 
 	private void OnLoadDialogue() {
-		_openFileDialog.CurrentDir = _fileCurDirMo.Data.Count > 0 ? _fileCurDirMo.Data[0] : "";
+		_openFileDialog.CurrentDir = GlobalData.I.GlobalSettingMo.CurrentDir;
 		_openFileDialog.Show();
 	}
 
+	private void OnSetRoot() {
+		_setRootFileDialog.CurrentDir = GlobalData.I.GlobalSettingMo.CurrentDir;
+		_setRootFileDialog.Show();
+	}
+
 	private void OnSaveDialogue() {
-		_saveFileDialog.CurrentDir = _fileCurDirMo.Data.Count > 0 ? _fileCurDirMo.Data[0] : "";
+		_saveFileDialog.CurrentDir = GlobalData.I.GlobalSettingMo.CurrentDir;
 		_saveFileDialog.Show();
-	}
-
-	private void OnAddSpeaker() {
-		_panel.SetData(GlobalData.I.GetSetting(ESettingType.Speaker));
-		_panel.GlobalPosition = _addSpeaker.GlobalPosition - new Vector2(0, _panel.Size.Y);
-	}
-
-	private void OnAddFunction() {
-		_panel.SetData(GlobalData.I.GetSetting(ESettingType.Function));
-		_panel.GlobalPosition = _addFunction.GlobalPosition - new Vector2(0, _panel.Size.Y);
-	}
-
-	private void OnAddVariable() {
-		_panel.SetData(GlobalData.I.GetSetting(ESettingType.Variable));
-		_panel.GlobalPosition = _addVar.GlobalPosition - new Vector2(0, _panel.Size.Y);
 	}
 
 	private void OnConnectionToEmpty(StringName fromNode, long fromPort, Vector2 releasePosition) {
@@ -213,11 +220,6 @@ public partial class DialogueGraph : Control {
 		}
 	}
 
-	public void TryDisconnectNode(StringName fromNode, long fromPort, StringName toNode, long toPort) {
-		Graph.DisconnectNode(fromNode, (int)fromPort, toNode, (int)toPort);
-		GlobalData.I.OnDisconnectNode(fromNode, fromPort, toNode, toPort);
-	}
-
 	private T AddGraphNode<T>(ENodeType nodeType) where T : SerializeGraphNode {
 		var nodeCls = GD.Load<PackedScene>(NodeType2Url[nodeType]);
 		var node = nodeCls.Instantiate<T>();
@@ -232,40 +234,51 @@ public partial class DialogueGraph : Control {
 
 	private void HideAll() {
 		_popMenu.Visible = false;
-		_panel.HideAndInvalidateData();
+		// _panel.Visible = false;
+		// _panel.HideAndInvalidateData();
 	}
 
+	private void ShowMessage(string message) {
+		_acceptDialog.DialogText = message;
+		_acceptDialog.Show();
+	}
+
+	/// <inheritdoc />
 	public void DeserializeData(DialogueGraphSerializeMo graphMo) {
+		foreach (var pair in GlobalData.I.GraphNodes) {
+			RemoveChild(pair.Value);
+			pair.Value.QueueFree();
+		}
 		System.Collections.Generic.Dictionary<string, string> oldName2NewName = new();
 		foreach (var graphNodeMo in graphMo.NodeMos) {
-			SerializeGraphNode node;
 			Enum.TryParse<ENodeType>(graphNodeMo.NodeType, out var nodeType);
-			switch (nodeType) {
-				case ENodeType.CallNode:
-					node = AddGraphNode<CallNode>(ENodeType.CallNode);
-					break;
-				case ENodeType.DialogueNode:
-					node = AddGraphNode<DialogueNode>(ENodeType.DialogueNode);
-					break;
-				case ENodeType.SetVarNode:
-					node = AddGraphNode<SetVarNode>(ENodeType.SetVarNode);
-					break;
-				case ENodeType.StartNode:
-					node = AddGraphNode<StartNode>(ENodeType.StartNode);
-					break;
-				default:
-					throw new ArgumentOutOfRangeException();
-			}
+			SerializeGraphNode node = nodeType switch {
+				ENodeType.CallNode => AddGraphNode<CallNode>(ENodeType.CallNode),
+				ENodeType.DialogueNode => AddGraphNode<DialogueNode>(ENodeType.DialogueNode),
+				ENodeType.SetVarNode => AddGraphNode<SetVarNode>(ENodeType.SetVarNode),
+				ENodeType.StartNode => AddGraphNode<StartNode>(ENodeType.StartNode),
+				_ => throw new ArgumentOutOfRangeException()
+			};
 
 			node.FromJson(graphNodeMo);
 			oldName2NewName.Add(graphNodeMo.Name, node.Name);
 		}
 
 		foreach (var connectionMo in graphMo.ConnectionMos) {
-			if (oldName2NewName.TryGetValue(connectionMo.FromNodeName, out var fromNodeName) &&
-				oldName2NewName.TryGetValue(connectionMo.ToNodeName, out var toNodeName)) {
+			if (oldName2NewName.TryGetValue(connectionMo.FromNodeName, out var fromNodeName) && oldName2NewName.TryGetValue(connectionMo.ToNodeName, out var toNodeName)) {
 				TryConnectNode(fromNodeName, connectionMo.FromPort.ToInt(), toNodeName, connectionMo.ToNodePort.ToInt());
 			}
 		}
+	}
+
+	/// <inheritdoc />
+	public Array<Dictionary> GetConnectionList() {
+		return Graph.GetConnectionList();
+	}
+
+	/// <inheritdoc />
+	public void TryDisconnectNode(StringName fromNode, long fromPort, StringName toNode, long toPort) {
+		Graph.DisconnectNode(fromNode, (int)fromPort, toNode, (int)toPort);
+		GlobalData.I.OnDisconnectNode(fromNode, fromPort, toNode, toPort);
 	}
 }

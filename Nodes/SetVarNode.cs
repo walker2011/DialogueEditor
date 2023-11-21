@@ -6,47 +6,47 @@ using Godot.Sharp.Extras;
 namespace DialogueEditor.Nodes;
 
 public partial class SetVarNode : SerializeGraphNode {
-	[NodePath("VarName")] private OptionButton _varName;
+	[NodePath("VarName")]
+	private OptionButton _varName;
 
-	[NodePath("VarValue")] private LineEdit _varValue;
+	[NodePath("VarValue")]
+	private LineEdit _varValue;
 
 	public override void _Ready() {
 		this.OnReady();
-		GlobalData.I.OneSettingDataChanged += OnOneSettingDataChanged;
-		GlobalData.I.AllSettingDataChanged += OnAllSettingDataChanged;
-		OnAllSettingDataChanged();
+		GlobalData.I.ReloadConfigs += OnReloadConfigs;
+		OnReloadConfigs();
 	}
 
-	private void OnAllSettingDataChanged() {
-		var mo = GlobalData.I.GetSetting(ESettingType.Variable);
-		OnOneSettingDataChanged(mo);
-	}
-
-	private void OnOneSettingDataChanged(SettingMo mo) {
-		if (mo.SettingType.Equals(ESettingType.Variable)) {
-			if (string.IsNullOrEmpty(_varName.Text)) {
-				if (mo.Data.IndexOf(_varName.Text) == -1) {
-					_varName.Text = "";
-				}
+	private void OnReloadConfigs() {
+		var variableConfig = GlobalData.I.VariableConfig;
+		if (!string.IsNullOrEmpty(_varName.Text) && variableConfig != null) {
+			if (!variableConfig.MoDict.ContainsKey(_varName.Text)) {
+				_varName.Text = "";
 			}
+		}
 
-			_varName.Clear();
-			foreach (var content in mo.Data) {
-				_varName.AddItem(content);
+		_varName.Clear();
+		if (variableConfig != null) {
+			for (var i = 0; i < variableConfig.MoArray.Count; i++) {
+				var variableMo = variableConfig.MoArray[i];
+				var id = i;
+				_varName.AddItem(variableMo.Name, id);
+				_varName.SetItemTooltip(id, variableMo.Description);
 			}
 		}
 	}
 
 	public override CheckSerializeResult CheckCanSerialize() {
 		if (string.IsNullOrEmpty(_varName.Text)) {
-			return new CheckSerializeResult {IsFailed = true, Reason = "Var Name Can't Be Empty."};
+			return new CheckSerializeResult { IsFailed = true, Reason = "Var Name Can't Be Empty." };
 		}
 
 		if (string.IsNullOrEmpty(_varValue.Text)) {
-			return new CheckSerializeResult {IsFailed = true, Reason = "Var Value Can't Be Empty."};
+			return new CheckSerializeResult { IsFailed = true, Reason = "Var Value Can't Be Empty." };
 		}
 
-		return new CheckSerializeResult {IsFailed = false};
+		return new CheckSerializeResult { IsFailed = false };
 	}
 
 	public override void ToJson(SerializeNodeMo mo) {
